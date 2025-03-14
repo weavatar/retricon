@@ -6,6 +6,7 @@ import (
 	"errors"
 	"image"
 	"image/color"
+	"image/draw"
 	"math"
 	"strings"
 )
@@ -29,6 +30,7 @@ type Options struct {
 	TileSize      int
 	TileColor     any // Can be int, string, or color.RGBA
 	BgColor       any // Can be int, string, or color.RGBA
+	Size          int
 	TilePadding   int
 	ImagePadding  int
 	MinFill       float64
@@ -45,6 +47,7 @@ func (o *Options) ApplyStyle(style Style) error {
 	case Github:
 		o.TileSize = 70
 		o.BgColor = "F0F0F0"
+		o.Size = 500
 		o.TilePadding = -1
 		o.ImagePadding = 35
 		o.Tiles = 5
@@ -52,12 +55,14 @@ func (o *Options) ApplyStyle(style Style) error {
 		o.HorizontalSym = false
 	case Gravatar:
 		o.BgColor = 1
+		o.Size = 500
 		o.Tiles = 8
 		o.VerticalSym = true
 		o.HorizontalSym = false
 	case Mono:
 		o.BgColor = "F0F0F0"
 		o.TileColor = "000000"
+		o.Size = 500
 		o.Tiles = 6
 		o.TileSize = 12
 		o.TilePadding = -1
@@ -69,6 +74,7 @@ func (o *Options) ApplyStyle(style Style) error {
 		o.TilePadding = 1
 		o.TileSize = 16
 		o.BgColor = "F0F0F0"
+		o.Size = 500
 		o.VerticalSym = true
 		o.HorizontalSym = false
 	case Mini:
@@ -77,11 +83,13 @@ func (o *Options) ApplyStyle(style Style) error {
 		o.Tiles = 3
 		o.BgColor = 0
 		o.TileColor = 1
+		o.Size = 500
 		o.VerticalSym = false
 		o.HorizontalSym = false
 	case Window:
 		o.TileColor = color.RGBA{R: 255, G: 255, B: 255, A: 255}
 		o.BgColor = 0
+		o.Size = 500
 		o.ImagePadding = 2
 		o.TilePadding = 1
 		o.TileSize = 16
@@ -100,6 +108,7 @@ func New(name string, style ...Style) (image.Image, error) {
 		TileSize:      1,
 		TileColor:     0,
 		BgColor:       nil,
+		Size:          500,
 		TilePadding:   0,
 		ImagePadding:  0,
 		MinFill:       0.3,
@@ -128,6 +137,9 @@ func NewWithOptions(name string, opts Options) (image.Image, error) {
 	}
 	if opts.MaxFill <= 0 {
 		opts.MaxFill = 0.9
+	}
+	if opts.Size <= 0 {
+		opts.Size = 500
 	}
 
 	dimension := opts.Tiles
@@ -182,31 +194,23 @@ func NewWithOptions(name string, opts Options) (image.Image, error) {
 	}
 
 	tileWidth := opts.TileSize + opts.TilePadding*2
-	canvasSize := tileWidth*opts.Tiles + opts.ImagePadding*2
+	canvasSize := float64(tileWidth*opts.Tiles + opts.ImagePadding*2)
+	drawScale := max(float64(opts.Size)/canvasSize, float64(1))
 
 	// Create the base image
-	im := image.NewRGBA(image.Rect(0, 0, canvasSize, canvasSize))
-
+	im := image.NewRGBA(image.Rect(0, 0, int(canvasSize*drawScale), int(canvasSize*drawScale)))
 	// Fill the background
-	for y := 0; y < im.Bounds().Dy(); y++ {
-		for x := 0; x < im.Bounds().Dx(); x++ {
-			im.Set(x, y, bgColor)
-		}
-	}
+	draw.Draw(im, im.Bounds(), image.NewUniform(bgColor), image.Point{}, draw.Src)
 
 	// Draw the tiles
 	for y := 0; y < dimension; y++ {
 		for x := 0; x < dimension; x++ {
 			if pic[y][x] == 1 {
-				x0 := (x * tileWidth) + opts.TilePadding + opts.ImagePadding
-				y0 := (y * tileWidth) + opts.TilePadding + opts.ImagePadding
-
+				x0 := float64((x * tileWidth) + opts.TilePadding + opts.ImagePadding)
+				y0 := float64((y * tileWidth) + opts.TilePadding + opts.ImagePadding)
 				// Draw the rectangle tile
-				for py := y0; py < y0+opts.TileSize; py++ {
-					for px := x0; px < x0+opts.TileSize; px++ {
-						im.Set(px, py, tileColor)
-					}
-				}
+				tileRect := image.Rect(int(x0*drawScale), int(y0*drawScale), int((x0+float64(opts.TileSize))*drawScale), int((y0+float64(opts.TileSize))*drawScale))
+				draw.Draw(im, tileRect, image.NewUniform(tileColor), image.Point{}, draw.Src)
 			}
 		}
 	}

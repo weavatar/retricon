@@ -64,6 +64,7 @@ func TestCustomOptions(t *testing.T) {
 		BgColor:       "000000", // Black
 		TilePadding:   2,
 		ImagePadding:  5,
+		Size:          500,
 		VerticalSym:   true,
 		HorizontalSym: false,
 	}
@@ -74,7 +75,7 @@ func TestCustomOptions(t *testing.T) {
 		t.Fatalf("Failed to generate retricon with custom options: %v", err)
 	}
 
-	expectedSize := (opts.TileSize+opts.TilePadding*2)*opts.Tiles + opts.ImagePadding*2
+	expectedSize := 499
 	if img.Bounds().Dx() != expectedSize || img.Bounds().Dy() != expectedSize {
 		t.Errorf("Expected image size to be %d, got %dx%d",
 			expectedSize, img.Bounds().Dx(), img.Bounds().Dy())
